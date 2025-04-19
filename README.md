@@ -9,6 +9,7 @@ This project implements an automated OMR (Optical Mark Recognition) system for g
 - High-precision bubble detection and grading
 - Support for multiple answer sheet formats
 - Debug visualization of marker detection
+- Interactive bubble mapping tool for custom answer sheet layouts
 
 ## Prerequisites
 
@@ -16,6 +17,7 @@ This project implements an automated OMR (Optical Mark Recognition) system for g
 - OpenCV (cv2)
 - NumPy
 - imutils
+- Modern web browser (for bubble mapping tool)
 
 ## Installation
 
@@ -58,6 +60,27 @@ The script will:
 - Apply perspective transformation
 - Save the processed image in the `output` directory
 
+### 3. Using the Bubble Mapping Tool
+
+The project includes an interactive web-based tool (`omr_bubble_mapper.html`) for mapping bubble locations on your answer sheet:
+
+1. Open `omr_bubble_mapper.html` in your web browser
+2. Upload your processed answer sheet image
+3. Use the tool to mark bubble locations:
+   - Select the section type (Student ID or Questions)
+   - Choose between point or circle drawing mode
+   - Adjust circle size if needed
+   - Click on each bubble location to mark it
+4. Download the coordinates as JSON for use in your grading system
+
+Features of the Bubble Mapper:
+- Support for Student ID and Questions sections
+- Configurable number of options per question
+- Real-time coordinate display
+- Circle or point marking modes
+- Adjustable circle size
+- JSON export of coordinates
+
 ### Output Files
 
 The script generates several output files in the `output` directory:
@@ -80,6 +103,7 @@ For optimal results, place the ArUco markers at the four corners of your answer 
 - Make sure all four markers are visible and not obstructed
 - Check that the markers are properly aligned with the corners
 - If detection fails, check the debug images in the output directory
+- When using the bubble mapper, ensure your image is properly aligned and markers are visible
 
 ## License
 
