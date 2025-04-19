@@ -6,8 +6,8 @@ import os
 # === Configuration ===
 IMAGE_PATH = "output/detect_omr/warped_omr.jpg"
 JSON_PATH = "assets/omr_coordinates.json"
-FILL_THRESHOLD = 0.9  # Increased threshold for actual filled circles
-CONFIDENCE_THRESHOLD = 0.4  # Increased confidence threshold
+FILL_THRESHOLD = 0.85  # Very high threshold for complete circle filling
+CONFIDENCE_THRESHOLD = 0.9  # High confidence required
 MIN_FILLED_AREA = 0.8  # Minimum area that must be filled
 DEBUG_MODE = True  # Set to True to save debug images
 DIGIT_HEIGHT_GAP = 20  # Pixel gap between digits stacked vertically
@@ -21,38 +21,41 @@ def preprocess_image(img):
     # Convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # Apply CLAHE for better contrast
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    enhanced = clahe.apply(gray)
+    # Increase contrast
+    gray = cv2.convertScaleAbs(gray, alpha=1.3, beta=30)
     
-    # Apply Gaussian blur
-    blur = cv2.GaussianBlur(enhanced, (5, 5), 0)
+    # Apply strong Gaussian blur to remove text
+    blur = cv2.GaussianBlur(gray, (7, 7), 0)
     
-    # Apply adaptive thresholding
-    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                 cv2.THRESH_BINARY_INV, 11, 2)
+    # Apply binary threshold with high value to detect only dark fills
+    _, thresh1 = cv2.threshold(blur, 180, 255, cv2.THRESH_BINARY_INV)
     
-    # Remove noise
+    # Remove noise and small elements
     kernel = np.ones((3,3), np.uint8)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    thresh = cv2.morphologyEx(thresh1, cv2.MORPH_OPEN, kernel)
+    
+    # Dilate to ensure filled areas are well connected
+    thresh = cv2.dilate(thresh, kernel, iterations=1)
     
     if DEBUG_MODE:
-        cv2.imwrite('output/debug/preprocessed.jpg', thresh)
+        # Save intermediate steps for debugging
+        cv2.imwrite('output/omr_grader/1_gray.jpg', gray)
+        cv2.imwrite('output/omr_grader/2_blur.jpg', blur)
+        cv2.imwrite('output/omr_grader/3_thresh.jpg', thresh1)
+        cv2.imwrite('output/omr_grader/4_preprocessed.jpg', thresh)
     
     return thresh
 
 # === Enhanced Bubble Detection ===
 def is_filled(img, x, y, r, threshold=FILL_THRESHOLD):
-    # Use a smaller ROI to avoid text
-    inner_r = int(r * 0.7)  # Use 70% of the radius to avoid text
-    roi = img[y - inner_r:y + inner_r, x - inner_r:x + inner_r]
-    
+    # Get the full circle area
+    roi = img[y - r:y + r, x - r:x + r]
     if roi.shape[0] == 0 or roi.shape[1] == 0:
         return False, 0.0
     
-    # Create circular mask for the inner region
+    # Create circular mask for the entire circle
     mask = np.zeros(roi.shape, dtype=np.uint8)
-    cv2.circle(mask, (inner_r, inner_r), inner_r, 255, -1)
+    cv2.circle(mask, (r, r), r, 255, -1)
     
     # Calculate filled ratio
     total_pixels = np.sum(mask == 255)
@@ -62,10 +65,10 @@ def is_filled(img, x, y, r, threshold=FILL_THRESHOLD):
     # Calculate confidence score
     confidence = min(1.0, fill_ratio / threshold)
     
-    # Check if the filled area is significant enough
-    is_significant_fill = fill_ratio > threshold and (filled_pixels / (np.pi * r * r)) > MIN_FILLED_AREA
+    # For complete circle filling, we need a very high fill ratio
+    is_completely_filled = fill_ratio > threshold
     
-    return is_significant_fill, confidence
+    return is_completely_filled, confidence
 
 # === Load and Process Image ===
 img = cv2.imread(IMAGE_PATH)
@@ -155,14 +158,20 @@ if DEBUG_MODE:
     for q_key, q_bubbles in data.get("questions", {}).items():
         for i, bubble in enumerate(q_bubbles):
             x, y, r = bubble["x"], bubble["y"], bubble["r"]
-            # Draw outer circle
+            # Draw the circle
             cv2.circle(debug_img, (x, y), r, (0, 0, 255), 2)
-            # Draw inner circle (detection area)
-            inner_r = int(r * 0.7)
-            cv2.circle(debug_img, (x, y), inner_r, (255, 0, 0), 1)
             
-            # Color based on detection
-            color = (0, 255, 0) if results["answers"][q_key] == chr(65 + i) else (0, 0, 255)
-            cv2.putText(debug_img, f"{q_key}_{chr(65 + i)}", (x - r, y - r - 5),
+            # Get the fill status for visualization
+            is_filled_bubble, confidence = is_filled(thresh, x, y, r)
+            
+            # Color based on detection and confidence
+            if is_filled_bubble and confidence >= CONFIDENCE_THRESHOLD:
+                color = (0, 255, 0)  # Green for detected
+                cv2.circle(debug_img, (x, y), r-2, color, -1)  # Fill the detected circle
+            else:
+                color = (0, 0, 255)  # Red for not detected
+            
+            cv2.putText(debug_img, f"{confidence:.2f}", (x - r, y - r - 5),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-    cv2.imwrite('output/debug/detected_bubbles.jpg', debug_img)
+    
+    cv2.imwrite('output/omr_grader/detected_bubbles.jpg', debug_img)
