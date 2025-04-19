@@ -8,7 +8,7 @@ import os
 os.makedirs('output', exist_ok=True)
 
 # Read image
-image = cv2.imread("assets/blank_omr.png")
+image = cv2.imread("assets/aruco_detect_test.png")
 if image is None:
     print("Error: Could not read the image file")
     exit(1)
