@@ -67,6 +67,26 @@
       padding-bottom: 10px;
       border-bottom: 2px solid #eee;
     }
+    .section-controls {
+      margin-top: 15px;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 5px;
+    }
+    .section-controls select {
+      padding: 5px;
+      margin-right: 10px;
+    }
+    .section-info {
+      margin-top: 5px;
+      font-size: 14px;
+      color: #666;
+    }
+    .digit-info {
+      margin-top: 5px;
+      font-weight: bold;
+      color: #333;
+    }
   </style>
 </head>
 <body>
@@ -76,16 +96,40 @@
   <div class="control-panel">
     <input type="file" id="upload" accept="image/*" />
     
+    <div class="section-controls">
+      <label for="currentSection">Current Section:</label>
+      <select id="currentSection">
+        <option value="student_id">Student ID</option>
+        <option value="questions">Questions</option>
+      </select>
+      <div class="section-info" id="sectionInfo">
+        Marking Student ID bubbles (6 digits, 0-9 each)
+      </div>
+      <div class="digit-info" id="digitInfo">
+        Current Digit: 1 (0-9)
+      </div>
+    </div>
+    
     <div style="margin-top: 15px;">
       <label for="drawingMode">Drawing Mode:</label>
       <select id="drawingMode">
         <option value="point">Point</option>
-        <option value="circle">Circle</option>
+        <option value="circle" selected>Circle</option>
       </select>
       
       <label for="circleRadius">Circle Size:</label>
-      <input type="range" id="circleRadius" min="1" max="50" value="15" />
-      <span id="radiusValue">15</span>px
+      <input type="range" id="circleRadius" min="1" max="50" value="5" />
+      <span id="radiusValue">5</span>px
+    </div>
+
+    <div style="margin-top: 15px;" id="questionControls">
+      <label for="optionsPerQuestion">Options per Question:</label>
+      <select id="optionsPerQuestion">
+        <option value="2">2 Options</option>
+        <option value="3">3 Options</option>
+        <option value="4" selected>4 Options</option>
+        <option value="5">5 Options</option>
+      </select>
     </div>
     
     <div style="margin-top: 10px;">
@@ -113,12 +157,48 @@
     const drawingModeSelector = document.getElementById('drawingMode');
     const circleRadiusSlider = document.getElementById('circleRadius');
     const radiusValue = document.getElementById('radiusValue');
+    const currentSection = document.getElementById('currentSection');
+    const sectionInfo = document.getElementById('sectionInfo');
+    const digitInfo = document.getElementById('digitInfo');
+    const optionsPerQuestion = document.getElementById('optionsPerQuestion');
+    const questionControls = document.getElementById('questionControls');
     let image = new Image();
-    let coords = [];
+    let coords = {
+      student_id: [],
+      questions: {}
+    };
     let mouseX = 0;
     let mouseY = 0;
     let scaleX = 1;
     let scaleY = 1;
+    let currentQuestion = 1;
+    let currentDigit = 1;
+    let currentOption = 0;
+
+    // Hide question controls initially
+    questionControls.style.display = 'none';
+
+    // Update section info
+    currentSection.addEventListener('change', () => {
+      updateSectionInfo();
+      questionControls.style.display = currentSection.value === 'questions' ? 'block' : 'none';
+    });
+
+    function updateSectionInfo() {
+      const section = currentSection.value;
+      if (section === 'student_id') {
+        sectionInfo.textContent = 'Marking Student ID bubbles (6 digits, 0-9 each)';
+        digitInfo.textContent = `Current Digit: ${currentDigit} (0-9)`;
+      } else if (section === 'questions') {
+        sectionInfo.textContent = `Marking Question ${currentQuestion} bubbles (${optionsPerQuestion.value} options)`;
+        digitInfo.textContent = `Current Option: ${currentOption + 1}/${optionsPerQuestion.value}`;
+      }
+    }
+
+    // Update options per question
+    optionsPerQuestion.addEventListener('change', () => {
+      updateSectionInfo();
+    });
 
     // Update radius display when slider changes
     circleRadiusSlider.addEventListener('input', () => {
@@ -128,7 +208,6 @@
     // Track mouse position
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
-      // Calculate position relative to image's natural dimensions
       mouseX = Math.round((e.clientX - rect.left) / scaleX);
       mouseY = Math.round((e.clientY - rect.top) / scaleY);
       redrawCanvas();
@@ -145,7 +224,6 @@
       const reader = new FileReader();
       reader.onload = function (event) {
         image.onload = () => {
-          // Calculate scaling factors
           const maxHeight = window.innerHeight * 0.8;
           const maxWidth = window.innerWidth * 0.6;
           
@@ -165,11 +243,9 @@
           canvas.width = newWidth;
           canvas.height = newHeight;
           
-          // Store scaling factors
           scaleX = newWidth / image.width;
           scaleY = newHeight / image.height;
           
-          // Draw image
           ctx.drawImage(image, 0, 0, newWidth, newHeight);
         };
         image.src = event.target.result;
@@ -179,18 +255,48 @@
 
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
-      // Calculate position relative to image's natural dimensions
       const x = Math.round((e.clientX - rect.left) / scaleX);
       const y = Math.round((e.clientY - rect.top) / scaleY);
       const radius = parseInt(circleRadiusSlider.value);
       const mode = drawingModeSelector.value;
+      const section = currentSection.value;
       
-      coords.push({
-        x: x,
-        y: y,
-        radius: radius,
-        mode: mode
-      });
+      const point = { x, y, r: radius };
+      
+      if (section === 'questions') {
+        if (!coords.questions[`question_${currentQuestion}`]) {
+          coords.questions[`question_${currentQuestion}`] = [];
+        }
+        coords.questions[`question_${currentQuestion}`].push(point);
+        currentOption++;
+        
+        // Move to next question if all options are marked
+        if (currentOption >= parseInt(optionsPerQuestion.value)) {
+          currentQuestion++;
+          currentOption = 0;
+          updateSectionInfo();
+        } else {
+          updateSectionInfo();
+        }
+      } else if (section === 'student_id') {
+        coords.student_id.push(point);
+        currentOption++;
+        
+        // Move to next digit if all options (0-9) are marked
+        if (currentOption >= 10) {
+          currentDigit++;
+          currentOption = 0;
+          if (currentDigit > 6) {
+            currentSection.value = 'questions';
+            updateSectionInfo();
+            questionControls.style.display = 'block';
+          } else {
+            updateSectionInfo();
+          }
+        } else {
+          updateSectionInfo();
+        }
+      }
 
       redrawCanvas();
       coordsDisplay.textContent = JSON.stringify(coords, null, 2);
@@ -202,20 +308,25 @@
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
       }
       
-      // Draw all markers
-      for (const coord of coords) {
+      // Draw student ID markers
+      coords.student_id.forEach(point => {
         ctx.beginPath();
-        if (coord.mode === 'point' || !coord.mode) {
-          ctx.arc(coord.x * scaleX, coord.y * scaleY, 3, 0, Math.PI * 2);
-          ctx.fillStyle = "red";
-          ctx.fill();
-        } else if (coord.mode === 'circle') {
-          ctx.arc(coord.x * scaleX, coord.y * scaleY, coord.radius * scaleX, 0, Math.PI * 2);
+        ctx.arc(point.x * scaleX, point.y * scaleY, point.r * scaleX, 0, Math.PI * 2);
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+
+      // Draw question markers
+      Object.entries(coords.questions).forEach(([question, points]) => {
+        points.forEach(point => {
+          ctx.beginPath();
+          ctx.arc(point.x * scaleX, point.y * scaleY, point.r * scaleX, 0, Math.PI * 2);
           ctx.strokeStyle = "red";
           ctx.lineWidth = 2;
           ctx.stroke();
-        }
-      }
+        });
+      });
 
       // Draw hover preview
       if (mouseX && mouseY) {
@@ -246,10 +357,20 @@
     }
 
     function resetCanvas() {
-      coords = [];
+      coords = {
+        student_id: [],
+        questions: {}
+      };
+      currentQuestion = 1;
+      currentDigit = 1;
+      currentOption = 0;
+      updateSectionInfo();
       coordsDisplay.textContent = JSON.stringify(coords, null, 2);
       redrawCanvas();
     }
+
+    // Initialize section info
+    updateSectionInfo();
   </script>
 
 </body>
