@@ -73,7 +73,7 @@ if ids is not None:
                           (pt_int[0] + 5, pt_int[1] + 5),
                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             
-            cv2.imwrite("output/detected_markers.jpg", debug_img)
+            cv2.imwrite("detect_omr/detected_markers.jpg", debug_img)
             print("Saved debug image with detected markers")
             
             # Calculate padding (1% of image dimensions)
@@ -91,7 +91,7 @@ if ids is not None:
             warped = four_point_transform(image, ordered_pts)
             
             # Save both original size and a resized version
-            cv2.imwrite("output/warped_omr.jpg", warped)
+            cv2.imwrite("detect_omr/warped_omr.jpg", warped)
             
             # Save a resized version if the warped image is too large
             max_dimension = 1500
@@ -100,7 +100,7 @@ if ids is not None:
                 scale = max_dimension / max(h, w)
                 new_size = (int(w * scale), int(h * scale))
                 warped_resized = cv2.resize(warped, new_size, interpolation=cv2.INTER_AREA)
-                cv2.imwrite("output/warped_omr_resized.jpg", warped_resized)
+                cv2.imwrite("detect_omr/warped_omr_resized.jpg", warped_resized)
                 print("Saved both original and resized warped images!")
             else:
                 print("Successfully warped and saved the image!")
@@ -119,7 +119,7 @@ if ids is not None:
                 center = marker_corners[0].mean(axis=0).astype(np.int32)
                 cv2.putText(debug_img, f"ID: {marker_id[0]}", tuple(center), 
                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-        cv2.imwrite("output/partial_detection.jpg", debug_img)
+        cv2.imwrite("detect_omr/partial_detection.jpg", debug_img)
         print("Saved debug image showing partial marker detection")
 else:
     print("No markers detected!")
