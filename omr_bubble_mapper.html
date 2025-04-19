@@ -7,9 +7,29 @@
     body { font-family: sans-serif; padding: 20px; }
     canvas { border: 2px solid #222; cursor: crosshair; }
     #coords { white-space: pre; background: #f5f5f5; padding: 10px; }
-    button { margin-top: 10px; }
-    .control-panel { margin: 10px 0; }
-    .control-panel label { margin-right: 10px; }
+    button { margin-top: 10px; margin-right: 10px; padding: 8px 16px; }
+    .control-panel { 
+      margin: 10px 0; 
+      padding: 15px;
+      background: #f8f8f8;
+      border-radius: 5px;
+    }
+    .control-panel label { 
+      margin-right: 15px; 
+      font-weight: bold;
+    }
+    #circleRadius {
+      width: 200px;
+      vertical-align: middle;
+    }
+    #drawingMode {
+      padding: 5px;
+      margin-right: 20px;
+    }
+    .canvas-container {
+      position: relative;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -25,12 +45,14 @@
       <option value="circle">Circle</option>
     </select>
     
-    <label for="circleRadius">Circle Radius:</label>
-    <input type="range" id="circleRadius" min="1" max="20" value="5" />
-    <span id="radiusValue">5</span>px
+    <label for="circleRadius">Circle Size:</label>
+    <input type="range" id="circleRadius" min="1" max="50" value="15" />
+    <span id="radiusValue">15</span>px
   </div>
   
-  <canvas id="canvas"></canvas>
+  <div class="canvas-container">
+    <canvas id="canvas"></canvas>
+  </div>
   <br />
   <button onclick="downloadJSON()">📥 Download Coordinates</button>
   <button onclick="resetCanvas()">🗑️ Reset All</button>
@@ -48,11 +70,65 @@
     const radiusValue = document.getElementById('radiusValue');
     let image = new Image();
     let coords = [];
+    let lastPreviewX = 0;
+    let lastPreviewY = 0;
 
     // Update radius display when slider changes
     circleRadiusSlider.addEventListener('input', () => {
       radiusValue.textContent = circleRadiusSlider.value;
+      if (lastPreviewX && lastPreviewY) {
+        redrawCanvas();
+        drawPreview(lastPreviewX, lastPreviewY);
+      }
     });
+
+    // Handle mouse movement for preview
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      lastPreviewX = Math.round(e.clientX - rect.left);
+      lastPreviewY = Math.round(e.clientY - rect.top);
+      
+      redrawCanvas();
+      drawPreview(lastPreviewX, lastPreviewY);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      lastPreviewX = 0;
+      lastPreviewY = 0;
+      redrawCanvas();
+    });
+
+    function drawPreview(x, y) {
+      const mode = drawingModeSelector.value;
+      const radius = parseInt(circleRadiusSlider.value);
+
+      ctx.beginPath();
+      if (mode === 'point') {
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.fill();
+        // Add crosshair for point mode
+        ctx.beginPath();
+        ctx.moveTo(x - 10, y);
+        ctx.lineTo(x + 10, y);
+        ctx.moveTo(x, y - 10);
+        ctx.lineTo(x, y + 10);
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        // Draw preview circle
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Add center point
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.fill();
+      }
+    }
 
     upload.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -75,7 +151,6 @@
       const radius = parseInt(circleRadiusSlider.value);
       const mode = drawingModeSelector.value;
       
-      // Save coordinates with additional data
       coords.push({
         x: x,
         y: y,
@@ -83,14 +158,12 @@
         mode: mode
       });
 
-      // Redraw the image and all markers
       redrawCanvas();
-
+      drawPreview(x, y);
       coordsDisplay.textContent = JSON.stringify(coords, null, 2);
     });
 
     function redrawCanvas() {
-      // Clear and redraw the image
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (image.src) {
         ctx.drawImage(image, 0, 0);
@@ -100,16 +173,30 @@
       for (const coord of coords) {
         ctx.beginPath();
         if (coord.mode === 'point' || !coord.mode) {
-          // Draw a point (small circle)
-          ctx.arc(coord.x, coord.y, 5, 0, Math.PI * 2);
+          // Draw a point with crosshair
+          ctx.arc(coord.x, coord.y, 3, 0, Math.PI * 2);
           ctx.fillStyle = "red";
           ctx.fill();
+          // Add permanent crosshair for points
+          ctx.beginPath();
+          ctx.moveTo(coord.x - 5, coord.y);
+          ctx.lineTo(coord.x + 5, coord.y);
+          ctx.moveTo(coord.x, coord.y - 5);
+          ctx.lineTo(coord.x, coord.y + 5);
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 1;
+          ctx.stroke();
         } else if (coord.mode === 'circle') {
-          // Draw a circle with custom radius
+          // Draw circle with center point
           ctx.arc(coord.x, coord.y, coord.radius, 0, Math.PI * 2);
           ctx.strokeStyle = "red";
           ctx.lineWidth = 2;
           ctx.stroke();
+          // Add center point
+          ctx.beginPath();
+          ctx.arc(coord.x, coord.y, 2, 0, Math.PI * 2);
+          ctx.fillStyle = "red";
+          ctx.fill();
         }
       }
     }
