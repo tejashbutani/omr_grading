@@ -3,7 +3,7 @@ import numpy as np
 import json
 
 # === Configuration ===
-IMAGE_PATH = "output/warped_omr_resized.jpg"
+IMAGE_PATH = "output/warped_omr.jpg"
 JSON_PATH = "assets/omr_coordinates.json"
 FILL_THRESHOLD = 0.5  # Tune based on marker darkness
 DIGIT_HEIGHT_GAP = 20  # Pixel gap between digits stacked vertically
