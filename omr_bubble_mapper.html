@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>OMR Bubble Mapper</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    canvas { border: 2px solid #222; cursor: crosshair; }
+    #coords { white-space: pre; background: #f5f5f5; padding: 10px; }
+    button { margin-top: 10px; }
+    .control-panel { margin: 10px 0; }
+    .control-panel label { margin-right: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>🎯 OMR Bubble Mapper Tool</h2>
+  <input type="file" id="upload" accept="image/*" />
+  <br /><br />
+  
+  <div class="control-panel">
+    <label for="drawingMode">Drawing Mode:</label>
+    <select id="drawingMode">
+      <option value="point">Point</option>
+      <option value="circle">Circle</option>
+    </select>
+    
+    <label for="circleRadius">Circle Radius:</label>
+    <input type="range" id="circleRadius" min="1" max="20" value="5" />
+    <span id="radiusValue">5</span>px
+  </div>
+  
+  <canvas id="canvas"></canvas>
+  <br />
+  <button onclick="downloadJSON()">📥 Download Coordinates</button>
+  <button onclick="resetCanvas()">🗑️ Reset All</button>
+
+  <h3>🧭 Clicked Coordinates:</h3>
+  <div id="coords">[]</div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const coordsDisplay = document.getElementById('coords');
+    const drawingModeSelector = document.getElementById('drawingMode');
+    const circleRadiusSlider = document.getElementById('circleRadius');
+    const radiusValue = document.getElementById('radiusValue');
+    let image = new Image();
+    let coords = [];
+
+    // Update radius display when slider changes
+    circleRadiusSlider.addEventListener('input', () => {
+      radiusValue.textContent = circleRadiusSlider.value;
+    });
+
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        image.onload = () => {
+          canvas.width = image.width;
+          canvas.height = image.height;
+          ctx.drawImage(image, 0, 0);
+        };
+        image.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.round(e.clientX - rect.left);
+      const y = Math.round(e.clientY - rect.top);
+      const radius = parseInt(circleRadiusSlider.value);
+      const mode = drawingModeSelector.value;
+      
+      // Save coordinates with additional data
+      coords.push({
+        x: x,
+        y: y,
+        radius: radius,
+        mode: mode
+      });
+
+      // Redraw the image and all markers
+      redrawCanvas();
+
+      coordsDisplay.textContent = JSON.stringify(coords, null, 2);
+    });
+
+    function redrawCanvas() {
+      // Clear and redraw the image
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (image.src) {
+        ctx.drawImage(image, 0, 0);
+      }
+      
+      // Draw all markers
+      for (const coord of coords) {
+        ctx.beginPath();
+        if (coord.mode === 'point' || !coord.mode) {
+          // Draw a point (small circle)
+          ctx.arc(coord.x, coord.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = "red";
+          ctx.fill();
+        } else if (coord.mode === 'circle') {
+          // Draw a circle with custom radius
+          ctx.arc(coord.x, coord.y, coord.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+    }
+
+    function downloadJSON() {
+      const blob = new Blob([JSON.stringify(coords, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = "bubble_map.json";
+      link.href = url;
+      link.click();
+    }
+
+    function resetCanvas() {
+      coords = [];
+      coordsDisplay.textContent = JSON.stringify(coords, null, 2);
+      redrawCanvas();
+    }
+  </script>
+
+</body>
+</html>
