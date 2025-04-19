@@ -87,6 +87,23 @@
       font-weight: bold;
       color: #333;
     }
+    #coords {
+      outline: none;
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 5px;
+      background: #f5f5f5;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre;
+      overflow-y: auto;
+      height: 80vh;
+    }
+    #coords:focus {
+      border-color: #666;
+      background: #fff;
+    }
   </style>
 </head>
 <body>
@@ -145,7 +162,7 @@
     
     <div class="right-panel">
       <h3 class="coords-title">🧭 Clicked Coordinates</h3>
-      <div id="coords">[]</div>
+      <div id="coords" contenteditable="true" spellcheck="false">[]</div>
     </div>
   </div>
 
@@ -303,7 +320,7 @@
       }
 
       redrawCanvas();
-      coordsDisplay.textContent = JSON.stringify(coords, null, 2);
+      updateCoordsDisplay();
     });
 
     function redrawCanvas() {
@@ -371,8 +388,53 @@
       currentDigit = 1;
       currentOption = 0;
       updateSectionInfo();
-      coordsDisplay.textContent = JSON.stringify(coords, null, 2);
+      updateCoordsDisplay();
       redrawCanvas();
+    }
+
+    // Make coordinates display editable and update canvas on change
+    coordsDisplay.addEventListener('input', () => {
+      try {
+        const newCoords = JSON.parse(coordsDisplay.textContent);
+        if (isValidCoordsStructure(newCoords)) {
+          coords = newCoords;
+          redrawCanvas();
+        }
+      } catch (e) {
+        // Invalid JSON, ignore
+      }
+    });
+
+    // Validate coordinate structure
+    function isValidCoordsStructure(obj) {
+      if (!obj || typeof obj !== 'object') return false;
+      if (!obj.student_id || typeof obj.student_id !== 'object') return false;
+      if (!obj.questions || typeof obj.questions !== 'object') return false;
+      
+      // Validate student_id structure
+      for (const key in obj.student_id) {
+        if (!key.startsWith('letter_')) return false;
+        if (!Array.isArray(obj.student_id[key])) return false;
+        for (const point of obj.student_id[key]) {
+          if (!point.x || !point.y || !point.r) return false;
+        }
+      }
+      
+      // Validate questions structure
+      for (const key in obj.questions) {
+        if (!key.startsWith('question_')) return false;
+        if (!Array.isArray(obj.questions[key])) return false;
+        for (const point of obj.questions[key]) {
+          if (!point.x || !point.y || !point.r) return false;
+        }
+      }
+      
+      return true;
+    }
+
+    // Update coordinates display
+    function updateCoordsDisplay() {
+      coordsDisplay.textContent = JSON.stringify(coords, null, 2);
     }
 
     // Initialize section info
