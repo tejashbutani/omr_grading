@@ -6,9 +6,9 @@ import os
 # === Configuration ===
 IMAGE_PATH = "output/detect_omr/warped_omr.jpg"
 JSON_PATH = "assets/omr_coordinates.json"
-FILL_THRESHOLD = 0.6  # Increased threshold for actual filled circles
+FILL_THRESHOLD = 0.9  # Increased threshold for actual filled circles
 CONFIDENCE_THRESHOLD = 0.4  # Increased confidence threshold
-MIN_FILLED_AREA = 0.3  # Minimum area that must be filled
+MIN_FILLED_AREA = 0.8  # Minimum area that must be filled
 DEBUG_MODE = True  # Set to True to save debug images
 DIGIT_HEIGHT_GAP = 20  # Pixel gap between digits stacked vertically
 
