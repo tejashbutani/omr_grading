@@ -164,7 +164,7 @@
     const questionControls = document.getElementById('questionControls');
     let image = new Image();
     let coords = {
-      student_id: [],
+      student_id: {},
       questions: {}
     };
     let mouseX = 0;
@@ -279,7 +279,11 @@
           updateSectionInfo();
         }
       } else if (section === 'student_id') {
-        coords.student_id.push(point);
+        const letterKey = `letter_${currentDigit}`;
+        if (!coords.student_id[letterKey]) {
+          coords.student_id[letterKey] = [];
+        }
+        coords.student_id[letterKey].push(point);
         currentOption++;
         
         // Move to next digit if all options (0-9) are marked
@@ -309,12 +313,14 @@
       }
       
       // Draw student ID markers
-      coords.student_id.forEach(point => {
-        ctx.beginPath();
-        ctx.arc(point.x * scaleX, point.y * scaleY, point.r * scaleX, 0, Math.PI * 2);
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+      Object.entries(coords.student_id).forEach(([letter, points]) => {
+        points.forEach(point => {
+          ctx.beginPath();
+          ctx.arc(point.x * scaleX, point.y * scaleY, point.r * scaleX, 0, Math.PI * 2);
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
       });
 
       // Draw question markers
@@ -358,7 +364,7 @@
 
     function resetCanvas() {
       coords = {
-        student_id: [],
+        student_id: {},
         questions: {}
       };
       currentQuestion = 1;
