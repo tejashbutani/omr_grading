@@ -3,7 +3,7 @@ import json
 import numpy as np
 
 # === Config ===
-IMAGE_PATH = "output/warped_omr.jpg"
+IMAGE_PATH = "output/detect_omr/warped_omr.jpg"
 JSON_PATH = "assets/omr_coordinates.json"
 OUTPUT_PATH = "output/verify_coordinates/omr_marked_preview.jpg"
 
