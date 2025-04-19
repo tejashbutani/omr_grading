@@ -49,10 +49,6 @@
       padding: 5px;
       margin-right: 20px;
     }
-    .canvas-container {
-      position: relative;
-      display: inline-block;
-    }
     .main-content {
       display: flex;
       gap: 20px;
@@ -100,9 +96,7 @@
 
   <div class="main-content">
     <div class="left-panel">
-      <div class="canvas-container">
-        <canvas id="canvas"></canvas>
-      </div>
+      <canvas id="canvas"></canvas>
     </div>
     
     <div class="right-panel">
@@ -121,74 +115,62 @@
     const radiusValue = document.getElementById('radiusValue');
     let image = new Image();
     let coords = [];
-    let lastPreviewX = 0;
-    let lastPreviewY = 0;
+    let mouseX = 0;
+    let mouseY = 0;
+    let scaleX = 1;
+    let scaleY = 1;
 
     // Update radius display when slider changes
     circleRadiusSlider.addEventListener('input', () => {
       radiusValue.textContent = circleRadiusSlider.value;
-      if (lastPreviewX && lastPreviewY) {
-        redrawCanvas();
-        drawPreview(lastPreviewX, lastPreviewY);
-      }
     });
 
-    // Handle mouse movement for preview
+    // Track mouse position
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
-      lastPreviewX = Math.round(e.clientX - rect.left);
-      lastPreviewY = Math.round(e.clientY - rect.top);
-      
+      // Calculate position relative to image's natural dimensions
+      mouseX = Math.round((e.clientX - rect.left) / scaleX);
+      mouseY = Math.round((e.clientY - rect.top) / scaleY);
       redrawCanvas();
-      drawPreview(lastPreviewX, lastPreviewY);
     });
 
     canvas.addEventListener('mouseleave', () => {
-      lastPreviewX = 0;
-      lastPreviewY = 0;
+      mouseX = 0;
+      mouseY = 0;
       redrawCanvas();
     });
-
-    function drawPreview(x, y) {
-      const mode = drawingModeSelector.value;
-      const radius = parseInt(circleRadiusSlider.value);
-
-      ctx.beginPath();
-      if (mode === 'point') {
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.fill();
-        // Add crosshair for point mode
-        ctx.beginPath();
-        ctx.moveTo(x - 10, y);
-        ctx.lineTo(x + 10, y);
-        ctx.moveTo(x, y - 10);
-        ctx.lineTo(x, y + 10);
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      } else {
-        // Draw preview circle
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        // Add center point
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.fill();
-      }
-    }
 
     upload.addEventListener('change', (e) => {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onload = function (event) {
         image.onload = () => {
-          canvas.width = image.width;
-          canvas.height = image.height;
-          ctx.drawImage(image, 0, 0);
+          // Calculate scaling factors
+          const maxHeight = window.innerHeight * 0.8;
+          const maxWidth = window.innerWidth * 0.6;
+          
+          let newWidth = image.width;
+          let newHeight = image.height;
+          
+          if (newHeight > maxHeight) {
+            newWidth = (maxHeight / newHeight) * newWidth;
+            newHeight = maxHeight;
+          }
+          
+          if (newWidth > maxWidth) {
+            newHeight = (maxWidth / newWidth) * newHeight;
+            newWidth = maxWidth;
+          }
+          
+          canvas.width = newWidth;
+          canvas.height = newHeight;
+          
+          // Store scaling factors
+          scaleX = newWidth / image.width;
+          scaleY = newHeight / image.height;
+          
+          // Draw image
+          ctx.drawImage(image, 0, 0, newWidth, newHeight);
         };
         image.src = event.target.result;
       };
@@ -197,8 +179,9 @@
 
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
-      const x = Math.round(e.clientX - rect.left);
-      const y = Math.round(e.clientY - rect.top);
+      // Calculate position relative to image's natural dimensions
+      const x = Math.round((e.clientX - rect.left) / scaleX);
+      const y = Math.round((e.clientY - rect.top) / scaleY);
       const radius = parseInt(circleRadiusSlider.value);
       const mode = drawingModeSelector.value;
       
@@ -210,44 +193,45 @@
       });
 
       redrawCanvas();
-      drawPreview(x, y);
       coordsDisplay.textContent = JSON.stringify(coords, null, 2);
     });
 
     function redrawCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (image.src) {
-        ctx.drawImage(image, 0, 0);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
       }
       
       // Draw all markers
       for (const coord of coords) {
         ctx.beginPath();
         if (coord.mode === 'point' || !coord.mode) {
-          // Draw a point with crosshair
-          ctx.arc(coord.x, coord.y, 3, 0, Math.PI * 2);
+          ctx.arc(coord.x * scaleX, coord.y * scaleY, 3, 0, Math.PI * 2);
           ctx.fillStyle = "red";
           ctx.fill();
-          // Add permanent crosshair for points
-          ctx.beginPath();
-          ctx.moveTo(coord.x - 5, coord.y);
-          ctx.lineTo(coord.x + 5, coord.y);
-          ctx.moveTo(coord.x, coord.y - 5);
-          ctx.lineTo(coord.x, coord.y + 5);
-          ctx.strokeStyle = "red";
-          ctx.lineWidth = 1;
-          ctx.stroke();
         } else if (coord.mode === 'circle') {
-          // Draw circle with center point
-          ctx.arc(coord.x, coord.y, coord.radius, 0, Math.PI * 2);
+          ctx.arc(coord.x * scaleX, coord.y * scaleY, coord.radius * scaleX, 0, Math.PI * 2);
           ctx.strokeStyle = "red";
           ctx.lineWidth = 2;
           ctx.stroke();
-          // Add center point
-          ctx.beginPath();
-          ctx.arc(coord.x, coord.y, 2, 0, Math.PI * 2);
-          ctx.fillStyle = "red";
+        }
+      }
+
+      // Draw hover preview
+      if (mouseX && mouseY) {
+        const mode = drawingModeSelector.value;
+        const radius = parseInt(circleRadiusSlider.value);
+        
+        ctx.beginPath();
+        if (mode === 'point') {
+          ctx.arc(mouseX * scaleX, mouseY * scaleY, 3, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
           ctx.fill();
+        } else {
+          ctx.arc(mouseX * scaleX, mouseY * scaleY, radius * scaleX, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
         }
       }
     }
